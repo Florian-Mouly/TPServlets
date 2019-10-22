@@ -7,6 +7,7 @@ package com.mycompany.mavenproject1;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletException;
@@ -14,14 +15,16 @@ import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
 import simplejdbc.CustomerEntity;
 import simplejdbc.DAO;
+import simplejdbc.DAOException;
 import simplejdbc.DataSourceFactory;
 
 
 /**
  *
- * @author pedago
+ * @author Florian MOULY
  */
 @WebServlet(name = "Servlet0", urlPatterns = {"/Servlet0"})
 public class Servlet0 extends HttpServlet {
@@ -34,9 +37,10 @@ public class Servlet0 extends HttpServlet {
      * @param response servlet response
      * @throws ServletException if a servlet-specific error occurs
      * @throws IOException if an I/O error occurs
+     * @throws simplejdbc.DAOException
      */
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-        throws ServletException, IOException {
+        throws ServletException, IOException, DAOException {
         response.setContentType("text/html;charset=UTF-8");
         try (PrintWriter out = response.getWriter()) {
             /* TODO output your page here. You may use following sample code. */
@@ -46,32 +50,64 @@ public class Servlet0 extends HttpServlet {
             out.println("<title>Servlet Servlet0</title>");            
             out.println("</head>");
             out.println("<body>");
-            try {   // Trouver la valeur du paramètre HTTP customerID
-                String val = request.getParameter("customerID");
-                if (val == null) {
-                    throw new Exception("La paramètre customerID n'a pas été transmis");
-                }
-                // on doit convertir cette valeur en entier (attention aux exceptions !)
-                int customerID = Integer.valueOf(val);
- 
-                DAO dao = new DAO(DataSourceFactory.getDataSource());
-                CustomerEntity customer = dao.findCustomer(customerID);
-                if (customer == null) {
-                    throw new Exception("Client inconnu");
-                }
-                // Afficher les propriétés du client         
-                out.printf("Customer n° %d <br> name: %s <br> address: %s",
-                    customerID,
-                    customer.getName(),
-                    customer.getAddressLine1());
-            } catch (Exception e) {
-                out.printf("Erreur : %s", e.getMessage());
+            out.println("<h1>Servlet Servlet0 at " + request.getContextPath() + "</h1>");
+            
+            /* EXEMPLE : Récupération des paramètres */
+            //String nom = request.getParameter("nom");  // param => /Servlet0?nom=Flo
+            //out.println("Nom = " + nom);
+            
+            /* Affiche les informations de tous les clients habitant dans un état des USA transmis en paramètre */
+            DataSource myDataSource = DataSourceFactory.getDataSource(); // La source de données à utiliser
+            DAO myDAO = new DAO(myDataSource); // L'objet à tester
+            DAO2 myDAO2 = new DAO2(myDataSource);
+                
+            //String state = request.getParameter("state");  // Partie 1 : Etat écrit à la main dans l'URL
+        
+            /* Partie 2 : Création de la liste de choix */
+            List<String> resultStates = myDAO2.allStates();  // Informations récupérées
+
+            out.println("<form method=\"get\" >");   // On récupère la valeur choisie avec la méthode GET
+            // Enregistrement de tous les états dans la liste HTML
+            out.println("<select name=\"etats\" >");
+            for(String s : resultStates) {
+                out.println("<option>" + s + "</option>");
             }
-            out.printf("<hr><a href='%s'>Retour au menu</a>", request.getContextPath());
+            out.println("</select>");
+            
+            out.print("  <input type=\"submit\" value=\"Valider\"  >");
+            out.println("</form>");
+            
+            String etatChoisi = request.getParameter("etats");  // Récupération de la valeur choisie
+            
+            /* Affichage de tous les clients en fonction de l'état */
+            List<CustomerEntity> result = myDAO.customersInState(etatChoisi);  // Informations récupérées
+            
+            /* Création des colonnes du tableau */
+            out.println("<table border=1 width=50% height=40%>");
+            out.println("<tr>");
+                out.println("<th>ID</th>");
+                out.println("<th>Name</th>");
+                out.println("<th>Address</th>");
+            out.println("</tr>");
+            
+            /* Table HTML : Affichage des résultats */
+            for (CustomerEntity ce : result) {
+                out.println("<tr>");
+               
+                out.println("<td>" + ce.getCustomerId() + "</td>");
+                out.println("<td>" + ce.getName() + "</td>");
+                out.println("<td>" + ce.getAddressLine1() + "</td>");
+                
+                out.println("</tr>");
+            }
+            
+           out.println("</table>");
+            
             out.println("</body>");
             out.println("</html>");
-        } catch (Exception ex) {
-            Logger.getLogger("servlet").log(Level.SEVERE, "Erreur de traitement", ex);
+
+        } catch (DAOException ex) {
+            Logger.getLogger(Servlet0.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
@@ -87,7 +123,11 @@ public class Servlet0 extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+        try {
+            processRequest(request, response);
+        } catch (DAOException ex) {
+            Logger.getLogger(Servlet0.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
@@ -101,7 +141,11 @@ public class Servlet0 extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+        try {
+            processRequest(request, response);
+        } catch (DAOException ex) {
+            Logger.getLogger(Servlet0.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     /**
